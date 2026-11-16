@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Nunito; font-weight: 800; src: url(../node_modules/@fontsource/nunito/files/nunito-latin-800-normal.woff2) format('woff2'); }
+  @font-face { font-family: Nunito; font-weight: 900; src: url(../node_modules/@fontsource/nunito/files/nunito-latin-900-normal.woff2) format('woff2'); }
+  :root { --paper: #F6EBDD; --card: #FFF9F0; --ink: #2B1B17; --maroon: #8E2F33; --up: #2E9460; --down: #D2402F; --flat: #8A7F78; --muted: #6E5F58; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--paper); color: var(--ink); font-family: Nunito, 'Arial Rounded MT Bold', sans-serif; font-weight: 800; }
+  #stage { position: absolute; inset: 0; background: radial-gradient(circle at 12px 12px, rgba(43,27,23,.07) 3px, transparent 3.5px) 0 0 / 28px 28px, var(--paper); }
+  #head { position: absolute; top: 150px; left: 64px; right: 64px; display: flex; justify-content: space-between; align-items: flex-end; }
+  #head .t { white-space: nowrap; font-size: 50px; font-weight: 900; color: var(--maroon); letter-spacing: 1px; text-transform: uppercase; }
+  #head .d { white-space: nowrap; font-size: 30px; color: var(--muted); padding-bottom: 6px; margin-left: 24px; }
+  #rule { position: absolute; top: 236px; left: 64px; right: 64px; height: 8px; background: var(--ink); border-radius: 4px; }
+  .scene { position: absolute; top: 280px; left: 64px; right: 64px; height: 1010px; opacity: 0; transform-origin: 50% 40%; }
+  .heading { font-size: 64px; font-weight: 900; line-height: 1.05; }
+  .note { font-size: 30px; color: var(--muted); margin-top: 8px; }
+  .card { background: var(--card); border: 7px solid var(--ink); border-radius: 34px; box-shadow: 12px 12px 0 var(--ink); }
+  .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--flat); }
+  .bg-up { background: var(--up); } .bg-down { background: var(--down); } .bg-flat { background: var(--flat); }
+  /* hero */
+  .hero .card { margin-top: 20px; padding: 44px 48px 40px; }
+  .hero .label { font-size: 60px; font-weight: 900; }
+  .hero .big { font-size: 230px; font-weight: 900; line-height: 1; margin: 6px 0 4px; letter-spacing: -4px; }
+  .hero .sub { font-size: 32px; color: var(--muted); }
+  .hero svg { display: block; margin-top: 34px; width: 100%; height: 330px; }
+  .hero .sl { font-size: 28px; color: var(--muted); margin-top: 14px; }
+  /* bars */
+  .rows { margin-top: 34px; display: flex; flex-direction: column; gap: 26px; }
+  .row { padding: 26px 34px 28px; }
+  .row .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .row .name { font-size: 54px; font-weight: 900; }
+  .row .name small { font-size: 28px; color: var(--muted); margin-left: 14px; font-weight: 800; }
+  .row .val { font-size: 62px; font-weight: 900; }
+  .track { height: 26px; margin-top: 16px; background: rgba(43,27,23,.12); border-radius: 13px; overflow: hidden; }
+  .fill { height: 100%; width: 0; border-radius: 13px; }
+  .compact .rows { gap: 7px; margin-top: 14px; }
+  .compact .row { padding: 5px 22px 8px; border-width: 4px; border-radius: 18px; box-shadow: 5px 5px 0 var(--ink); }
+  .compact .row .name { font-size: 33px; } .compact .row .name small { font-size: 20px; }
+  .compact .row .val { font-size: 36px; }
+  .compact .track { height: 9px; margin-top: 2px; }
+  /* stats */
+  .tiles { margin-top: 34px; display: flex; flex-direction: column; gap: 28px; }
+  .tile { padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; }
+  .tile .l { font-size: 52px; font-weight: 900; } .tile .h { font-size: 30px; color: var(--muted); }
+  .tile .v { font-size: 100px; font-weight: 900; color: var(--maroon); text-align: right; line-height: 1; }
+  .tile .p { font-size: 28px; color: var(--muted); text-align: right; margin-top: 8px; }
+  /* outro */
+  .outro { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 30px; }
+  .outro .line { font-size: 84px; font-weight: 900; line-height: 1.08; }
+  .outro .line:nth-child(2) { color: var(--maroon); font-size: 64px; }
+  .outro .arrow { font-size: 150px; color: var(--maroon); line-height: 1; }
+  /* captions: bold white, dark outline, spoken words bright and upcoming words dim */
+  #cap { position: absolute; left: 40px; right: 40px; top: 1450px; text-align: center; font-size: 78px; font-weight: 900; line-height: 1.1; }
+  #cap span { color: #CFC4BA; -webkit-text-stroke: 11px var(--ink); paint-order: stroke fill; margin: 0 11px; letter-spacing: 1.5px; display: inline-block; }
+  #cap span.on { color: #fff; }
+  #foot { position: absolute; left: 64px; right: 64px; bottom: 150px; display: flex; justify-content: space-between; font-size: 28px; color: var(--muted); border-top: 5px solid rgba(43,27,23,.25); padding-top: 16px; }
+  #bar { position: absolute; left: 0; bottom: 0; height: 12px; background: var(--maroon); width: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="head"><div class="t"></div><div class="d"></div></div><div id="rule"></div>
+  <div id="scenes"></div>
+  <div id="cap"></div>
+  <div id="foot"><div class="s"></div><div class="a"></div></div>
+  <div id="bar"></div>
+</div>
+<script>
+// Everything on screen is a pure function of the time t, so any frame can be drawn on its own.
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const cls = (m) => (m > 0 ? 'up' : m < 0 ? 'down' : 'flat');
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
+let R, chunks = [];
+
+function sceneHtml(s) {
+  const v = s.visual;
+  if (s.type === 'hero') {
+    let svg = '';
+    if (v.spark && v.spark.length > 1) {
+      const lo = Math.min(...v.spark), hi = Math.max(...v.spark), W = 840, H = 300;
+      const pts = v.spark.map((y, i) => [(i / (v.spark.length - 1)) * W + 8, H - ((y - lo) / (hi - lo || 1)) * (H - 30) - 8 + 15]);
+      const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+      svg = `<svg viewBox="0 0 856 330" preserveAspectRatio="none"><path class="sp" d="${d}" fill="none" stroke="#2B1B17" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/><circle class="dot" cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="15" fill="#8E2F33" stroke="#2B1B17" stroke-width="6" opacity="0"/></svg><div class="sl">${esc(v.sparkLabel)}</div>`;
+    }
+    return `<div class="card"><div class="label">${esc(v.label)}</div><div class="big ${cls(v.sign)}">${esc(v.value)}</div><div class="sub">${esc(v.sub)}</div>${svg}</div>`;
+  }
+  if (s.type === 'bars') {
+    const max = Math.max(...v.rows.map((r) => Math.abs(r.move)), 0.01);
+    return `<div class="heading">${esc(v.heading)}</div><div class="note">${esc(v.note)}</div><div class="rows">` + v.rows.map((r) =>
+      `<div class="row card"><div class="top"><div class="name">${esc(r.label)}<small>${esc(r.sub)}</small></div><div class="val ${cls(r.move)}">${esc(r.value)}</div></div><div class="track"><div class="fill bg-${cls(r.move)}" data-w="${(Math.abs(r.move) / max) * 100}"></div></div></div>`).join('') + '</div>';
+  }
+  if (s.type === 'stats') {
+    return `<div class="heading">${esc(v.heading)}</div><div class="note">${esc(v.note)}</div><div class="tiles">` + v.tiles.map((t) =>
+      `<div class="tile card"><div><div class="l">${esc(t.label)}</div><div class="h">${esc(t.hint)} · ${esc(t.date)}</div></div><div><div class="v">${esc(t.value)}</div><div class="p">${esc(t.prev)}</div></div></div>`).join('') + '</div>';
+  }
+  return `<div class="line">${esc(v.lines[0])}</div><div class="arrow">&#8593;</div><div class="line">${esc(v.lines[1])}</div>`;
+}
+
+window.setup = async (reel) => {
+  R = reel;
+  document.querySelector('#head .t').textContent = reel.title;
+  document.querySelector('#head .d').textContent = reel.dateLabel;
+  document.querySelector('#foot .s').textContent = reel.footer.source;
+  document.querySelector('#foot .a').textContent = reel.footer.asOf;
+  document.getElementById('scenes').innerHTML = reel.scenes.map((s, i) => `<div class="scene ${s.type} ${s.visual.compact ? 'compact' : ''}" data-i="${i}">${sceneHtml(s)}</div>`).join('');
+  // Captions: groups of up to 3 words, breaking at punctuation, like the reference reel.
+  chunks = [];
+  reel.scenes.forEach((s) => {
+    let cur = [];
+    s.words.forEach((w, k) => {
+      cur.push({ ...w, start: w.start + s.start, end: w.end + s.start });
+      if (cur.length === 3 || /[.,!?;:]$/.test(w.w) || k === s.words.length - 1) { chunks.push({ words: cur, start: cur[0].start, end: s.start + (s.words[k + 1]?.start ?? s.duration) }); cur = []; }
+    });
+  });
+  await document.fonts.ready;
+  window.seek(0);
+};
+
+window.seek = (t) => {
+  document.querySelectorAll('.scene').forEach((el) => {
+    const s = R.scenes[+el.dataset.i], lt = t - s.start;
+    const on = lt >= 0 && lt < s.duration;
+    const fadeIn = ease(lt / 0.35), fadeOut = s === R.scenes.at(-1) ? 1 : 1 - ease((lt - (s.duration - 0.25)) / 0.25);
+    el.style.opacity = on ? Math.min(fadeIn, fadeOut) : 0;
+    if (!on) return;
+    el.style.transform = `translateY(${(1 - fadeIn) * 60}px) scale(${1 + (el.classList.contains('compact') ? 0 : 0.03) * clamp(lt / s.duration)})`; // slow push-in
+    el.querySelectorAll('.row, .tile').forEach((row, k) => {
+      const p = ease((lt - 0.3 - k * (el.classList.contains('compact') ? 0.07 : 0.22)) / 0.45);
+      row.style.opacity = p; row.style.transform = `translateX(${(1 - p) * -70}px)`;
+      const f = row.querySelector('.fill'); if (f) f.style.width = (ease((lt - 0.55 - k * 0.12) / 0.8) * f.dataset.w) + '%';
+    });
+    const sp = el.querySelector('.sp');
+    if (sp) { const p = ease((lt - 0.5) / 2.2); sp.style.strokeDashoffset = 1 - p; el.querySelector('.dot').style.opacity = p > 0.98 ? 1 : 0; }
+    const big = el.querySelector('.big');
+    if (big) { const p = ease((lt - 0.15) / 0.5); big.style.transform = `scale(${0.6 + 0.4 * p})`; big.style.transformOrigin = '0 60%'; big.style.opacity = p; }
+  });
+  const c = chunks.find((c) => t >= c.start - 0.05 && t < c.end);
+  document.getElementById('cap').innerHTML = c ? c.words.map((w) => `<span class="${t >= w.start ? 'on' : ''}">${esc(w.w)}</span>`).join('') : '';
+  document.getElementById('bar').style.width = (clamp(t / R.duration) * 100) + '%';
+};
+</script>
+</body>
+</html>

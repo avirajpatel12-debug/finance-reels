@@ -1,0 +1,16 @@
+{
+  "name": "finance-reels",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dry": "DRY_RUN=1 node pipeline/run.js",
+    "reels": "node pipeline/run.js"
+  },
+  "dependencies": {
+    "@fontsource/nunito": "^5.0.0",
+    "playwright-core": "^1.48.0"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.2.0"
+  }
+}
