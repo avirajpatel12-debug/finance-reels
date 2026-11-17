@@ -1,5 +1,5 @@
 // Reads the Markets Briefing tables from the shared cloud store (Upstash Redis). Read only: this project never writes there.
-// Keys come from the environment (GitHub secrets in the cloud) or, on Avi's Mac, from ~/.markets-briefing/.env.
+// Keys come from the environment (GitHub secrets in the cloud) or, on the owner's Mac, from ~/.markets-briefing/.env.
 // With no keys it falls back to fixtures/sample.json so a dry run works anywhere.
 import fs from 'node:fs';
 import os from 'node:os';

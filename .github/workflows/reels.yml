@@ -1,0 +1,69 @@
+# Makes the reels on GitHub's computers. This project is public, so that computer time is free.
+# Started by hand from the Actions tab for now; an outside timer will start it three times a day once hosting is ready.
+#   real         live market data from the private cloud store, real narrator voice
+#   sample-data  the small sample in fixtures/ (public market numbers), real narrator voice
+#   dry          sample data, no voice, no AI: the fastest free test
+name: Make reels
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'What to make'
+        type: choice
+        options: [real, sample-data, dry]
+        default: real
+      keep_video:
+        description: 'Attach the finished video to this run for 1 day (sample data and dry runs only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reels
+  cancel-in-progress: false
+
+jobs:
+  reels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+      KV_REST_API_READ_ONLY_TOKEN: ${{ secrets.KV_REST_API_READ_ONLY_TOKEN }}
+      TZ: America/New_York
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Reuse the downloaded voice and listener models
+        uses: actions/cache@v4
+        with:
+          path: .cache/models
+          key: models-${{ hashFiles('pipeline/models.js') }}
+      - name: Reuse narration made by earlier runs
+        uses: actions/cache@v4
+        with:
+          path: .cache/voice
+          key: voice-${{ github.run_id }}
+          restore-keys: voice-
+      - name: Make reels
+        env:
+          DRY_RUN: ${{ inputs.mode == 'dry' && '1' || '' }}
+          USE_FIXTURE: ${{ inputs.mode != 'real' && '1' || '' }}
+        run: node pipeline/run.js
+      # Real reels are never attached here: anything attached to a run of a public project can be downloaded by others.
+      - name: Attach the test video
+        if: inputs.keep_video && inputs.mode != 'real'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reel
+          path: |
+            out/*.mp4
+            out/*.jpg
+          retention-days: 1

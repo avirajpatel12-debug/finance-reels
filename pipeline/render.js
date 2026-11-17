@@ -18,6 +18,24 @@ async function ffmpegPath() {
   }
 }
 
+// Uses the Chrome that is already installed (on the Mac and on GitHub's computers), so nothing extra is downloaded.
+async function launchBrowser() {
+  const args = process.env.CI ? ['--no-sandbox'] : [];
+  const tries = [
+    { channel: process.env.CHROME_CHANNEL || 'chrome', args },
+    ...[process.env.CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'].filter((p) => p && fs.existsSync(p)).map((executablePath) => ({ executablePath, args })),
+  ];
+  let lastError;
+  for (const options of tries) {
+    try {
+      return await chromium.launch(options);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw new Error(`Could not start Chrome: ${String(lastError?.message).split('\n')[0]}`);
+}
+
 export async function renderReel(reel, outFile) {
   // Lay the scenes end to end on one timeline.
   let t = 0;
@@ -39,7 +57,7 @@ export async function renderReel(reel, outFile) {
   ff.stderr.on('data', (d) => (ffErr += d));
   const done = new Promise((resolve, reject) => ff.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg failed: ${ffErr.slice(-400)}`)))));
 
-  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL || 'chrome' });
+  const browser = await launchBrowser();
   try {
     const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
     await page.goto(pathToFileURL(path.join(ROOT, 'templates', 'reel.html')).href);

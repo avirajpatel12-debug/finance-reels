@@ -31,11 +31,12 @@ if (problems.length) {
 }
 log(`Accuracy check passed: ${reel.facts.length} facts, ${reel.scenes.length} scenes.`);
 
-const outFile = path.join(outDir, `${reel.id}.mp4`);
+const outFile = path.join(outDir, `${reel.id}${dry ? '.dry' : ''}.mp4`); // a dry run never overwrites a real reel
 const voice = await addVoice(reel.scenes, { dry, wavFile: path.join(ROOT, '.cache', `${reel.id}.wav`) });
 reel.audioFile = voice.audioFile;
-log(`Voice: ${voice.voice}, ${voice.made} new sentences generated (the rest came from the cache).`);
+log(`Voice: ${voice.voice}, ${voice.made} new sentences generated (the rest came from the cache). Caption timing: ${dry ? 'estimated (dry run)' : voice.measured ? 'measured from the audio' : 'ESTIMATED (listener unavailable)'}.`);
+if (voice.unclear.length) log(`Check pronunciation, these words did not sound like the script: ${[...new Set(voice.unclear)].join(', ')}`);
 const started = Date.now();
 const { frames, seconds } = await renderReel(reel, outFile);
-fs.writeFileSync(outFile.replace(/\.mp4$/, '.json'), JSON.stringify({ ...reel, audioFile: undefined, scenes: reel.scenes.map(({ words, ...s }) => s) }, null, 2));
+fs.writeFileSync(outFile.replace(/\.mp4$/, '.json'), JSON.stringify({ ...reel, audioFile: undefined }, null, 2));
 log(`Rendered ${path.relative(ROOT, outFile)}: ${seconds.toFixed(1)}s, ${frames} frames, ${(fs.statSync(outFile).size / 1e6).toFixed(1)} MB, took ${((Date.now() - started) / 1000).toFixed(0)}s.`);

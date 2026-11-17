@@ -50,7 +50,6 @@
   .outro { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 30px; }
   .outro .line { font-size: 84px; font-weight: 900; line-height: 1.08; }
   .outro .line:nth-child(2) { color: var(--maroon); font-size: 64px; }
-  .outro .arrow { font-size: 150px; color: var(--maroon); line-height: 1; }
   /* captions: bold white, dark outline, spoken words bright and upcoming words dim */
   #cap { position: absolute; left: 40px; right: 40px; top: 1450px; text-align: center; font-size: 78px; font-weight: 900; line-height: 1.1; }
   #cap span { color: #CFC4BA; -webkit-text-stroke: 11px var(--ink); paint-order: stroke fill; margin: 0 11px; letter-spacing: 1.5px; display: inline-block; }
@@ -96,7 +95,7 @@ function sceneHtml(s) {
     return `<div class="heading">${esc(v.heading)}</div><div class="note">${esc(v.note)}</div><div class="tiles">` + v.tiles.map((t) =>
       `<div class="tile card"><div><div class="l">${esc(t.label)}</div><div class="h">${esc(t.hint)} · ${esc(t.date)}</div></div><div><div class="v">${esc(t.value)}</div><div class="p">${esc(t.prev)}</div></div></div>`).join('') + '</div>';
   }
-  return `<div class="line">${esc(v.lines[0])}</div><div class="arrow">&#8593;</div><div class="line">${esc(v.lines[1])}</div>`;
+  return `<div class="line">${esc(v.lines[0])}</div><svg class="arrow" viewBox="0 0 100 120" width="150" height="180"><path d="M50 112V14M14 50L50 12l36 38" fill="none" stroke="#8E2F33" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="line">${esc(v.lines[1])}</div>`;
 }
 
 window.setup = async (reel) => {
@@ -112,7 +111,9 @@ window.setup = async (reel) => {
     let cur = [];
     s.words.forEach((w, k) => {
       cur.push({ ...w, start: w.start + s.start, end: w.end + s.start });
-      if (cur.length === 3 || /[.,!?;:]$/.test(w.w) || k === s.words.length - 1) { chunks.push({ words: cur, start: cur[0].start, end: s.start + (s.words[k + 1]?.start ?? s.duration) }); cur = []; }
+      const next = s.words[k + 1];
+      const glued = next && /^\d[\d,]*[.,!?;:]?$/.test(next.w) && !/[.,!?;:]$/.test(w.w) && cur.length < 4; // keep "Russell 2000" together
+      if (((cur.length >= 3 || /[.,!?;:]$/.test(w.w)) && !glued) || k === s.words.length - 1) { chunks.push({ words: cur, start: cur[0].start, end: s.start + (s.words[k + 1]?.start ?? s.duration) }); cur = []; }
     });
   });
   await document.fonts.ready;
