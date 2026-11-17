@@ -53,7 +53,10 @@ jobs:
           node-version: '24'
           cache: npm
       - name: Install
-        run: npm ci --no-audit --no-fund
+        # The voice and listener run on the processor; skip the optional graphics-card (CUDA) download.
+        env:
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+        run: npm ci --no-audit --no-fund --onnxruntime-node-install-cuda=skip
       - name: Reuse the downloaded voice and listener models
         uses: actions/cache@v4
         with:
