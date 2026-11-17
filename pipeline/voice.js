@@ -35,6 +35,9 @@ const spoken = (w) =>
     .replace(/\b10-year/g, 'ten year')
     .replace(/\b2-year/g, 'two year')
     .replace(/\bVIX\b/g, 'Vix')
+    .replace(/\bUS\b/g, 'U.S.') // otherwise read as the word "us"
+    .replace(/\bAI\b/g, 'A.I.')
+    .replace(/\bECB\b/g, 'E.C.B.')
     .replace(/\bNasdaq\b/gi, 'Nazdack') // the plain spelling comes out sounding like "Nastec"
     .replace(/\bUTC\b/g, 'U T C');
 

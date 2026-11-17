@@ -15,7 +15,7 @@ import * as ai from './gemini.js';
 import { todaysHeadlines } from './headlines.js';
 import { checkStory, allowedNumbers, numbersIn } from './verify.js';
 
-const PROMPT_VERSION = 2;
+const PROMPT_VERSION = 3;
 const BEAT_LABEL = { what: 'What happened', why: 'Why', matters: 'Why it matters', implications: 'What it means', ripple: 'Ripple effects', watch: 'What to watch', outro: '' };
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -38,6 +38,8 @@ Hard rules:
 - Each scene: 1 or 2 short sentences, at most 30 words. The whole video: 70 to 120 words.
 - sourceIds lists only REASON ids (r1, r2...) or STORY ids (story1...), never fact ids.
 - No abbreviations a beginner would not know: say "earnings per share", not "EPS". No em dashes.
+- The narration is also shown as captions, so spell normally: "US", "VIX", "AI" (never "U S" or "V I X"; the voice handles pronunciation).
+- Never state a general tendency that today's FACTS contradict. For example, do not say defensive sectors tend to hold up if they fell more than others today; describe what actually happened instead.
 - Pick one visual per scene:
   headline: a short news-style headline (at most 60 characters), best for what and why.
   stat: one big number: factId of a level, significance or move fact, plus a context line (at most 60 characters).
@@ -196,10 +198,19 @@ async function write(sheet, found) {
   return null;
 }
 
+// Letters the writer sometimes spaces out for the voice; captions should show them normally.
+const ACRONYMS = new RegExp(`\\b(?:${['VIX', 'US', 'AI', 'ECB', 'EPS', 'CPI', 'GDP', 'ETF', 'IPO', 'CEO', 'CFO', 'FDA', 'SEC', 'PCE', 'PPI'].map((a) => a.split('').join('[\\s.]+')).join('|')})\\b\\.?(?=[\\s,;:!?)]|$)`, 'g');
+
 // Small tidy-ups that do not change meaning.
 function clean(script) {
   if (!script?.scenes) return script;
-  const tidy = (t) => String(t || '').replace(/\s*[—–]\s*/g, ', ').replace(/\bS\s*(?:&|and)\s*P\s*500\b/gi, 'S&P 500').replace(/\s+/g, ' ').trim();
+  const tidy = (t) =>
+    String(t || '')
+      .replace(/\s*[—–]\s*/g, ', ')
+      .replace(/\bS\s*(?:&|and)\s*P\s*500\b/gi, 'S&P 500')
+      .replace(ACRONYMS, (m) => m.replace(/[\s.]/g, '')) // "U S", "V I X" -> "US", "VIX"
+      .replace(/\s+/g, ' ')
+      .trim();
   script.title = tidy(script.title);
   for (const s of script.scenes) {
     s.narration = tidy(s.narration);

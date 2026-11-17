@@ -50,6 +50,16 @@ export function checkStory(script, sheet, sourceIds) {
     if (!String(s.narration || '').trim()) problems.push(`${at}: narration is empty.`);
     if (words(s.narration) > 34) problems.push(`${at}: narration has ${words(s.narration)} words; use at most 34.`);
     for (const text of [s.narration, v.headline, v.context, v.fromLabel]) for (const n of numbersIn(text)) if (!allowed.has(n)) problems.push(`${at}: "${n}" is not in the FACTS. Use only numbers exactly as written there.`);
+    // A level from an earlier day must be dated in the narration ("at Monday's close").
+    for (const f of sheet.facts) {
+      if (f.group !== 'level' || !sheet.when || String(f.asOf).slice(0, 10) === sheet.when.ymd) continue;
+      if (!String(s.narration || '').includes(f.display.replace(/ a barrel| points/, ''))) continue;
+      const d = new Date(`${String(f.asOf).slice(0, 10)}T12:00:00Z`);
+      const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long' }).format(d);
+      const md = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }).format(d);
+      const ok = new RegExp(`${weekday}|yesterday|${md.replace(' ', '\\.?\\s+')}|(?:previous|prior|last|latest|most recent) (?:close|session|trading day)`, 'i').test(s.narration);
+      if (!ok) problems.push(`${at}: ${f.display} is the close on ${weekday}, ${md}, not today. Say so, for example "at ${weekday}'s close".`);
+    }
     const cited = (s.sourceIds || []).filter(Boolean);
     for (const id of cited) if (!sourceIds.has(id)) problems.push(`${at}: source id "${id}" does not exist.`);
     if (s.beat === 'why' && !cited.some((id) => sourceIds.has(id))) problems.push(`${at}: a "why" scene must cite at least one REASON or STORY id; if none fits, leave the "why" beat out.`);
