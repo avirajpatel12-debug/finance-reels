@@ -34,10 +34,7 @@ const spoken = (w) =>
     .replace(/(\d)%/g, '$1 percent')
     .replace(/\b10-year/g, 'ten year')
     .replace(/\b2-year/g, 'two year')
-    .replace(/\bVIX\b/g, 'Vix')
-    .replace(/\bUS\b/g, 'U.S.') // otherwise read as the word "us"
-    .replace(/\bAI\b/g, 'A.I.')
-    .replace(/\bECB\b/g, 'E.C.B.')
+    .replace(/\bVIX\b/g, 'Vix') // plain "AI" and "US" are already read correctly; respelling AI made it say "eye"
     .replace(/\bNasdaq\b/gi, 'Nazdack') // the plain spelling comes out sounding like "Nastec"
     .replace(/\bUTC\b/g, 'U T C');
 

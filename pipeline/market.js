@@ -260,7 +260,7 @@ function toScenes(script, sheet, found) {
   const scenes = script.scenes.map((s) => {
     const v = s.visual;
     const used = [v.factId, ...(v.factIds || []), ...(v.toFactIds || [])].map((id) => f.get(id)).filter(Boolean);
-    const names = [...new Set([...(s.sourceIds || []).map((id) => src.get(id)).filter(Boolean), ...used.map((x) => x.sourceName)])];
+    const names = [...new Set([...(s.sourceIds || []).map((id) => src.get(id)).filter(Boolean).flatMap((n) => n.split(/,\s*/)), ...used.map((x) => x.sourceName)])];
     const base = { beat: s.beat, beatLabel: BEAT_LABEL[s.beat], narration: s.narration, sourceLine: names.length ? `Source: ${names.slice(0, 3).join(' · ')}` : '' };
     if (v.kind === 'headline') return { ...base, type: 'headline', visual: { headline: v.headline, sources: names.slice(0, 3) } };
     if (v.kind === 'stat') {
@@ -320,7 +320,7 @@ export async function buildMarketReel(prep, { dry = false } = {}) {
     dateLabel: `${when.weekday}, ${when.monthDay}`,
     footer: { source: 'Sources: Finnhub, FRED, news reports', asOf: `As of ${when.time} ET, ${when.shortDay}` },
     ticker: sheet.ticker,
-    sources: [...newsLinks, ...storyLinks, { name: 'Finnhub', url: 'https://finnhub.io' }, { name: 'FRED', url: 'https://fred.stlouisfed.org' }].slice(0, 6),
+    sources: [...newsLinks, ...storyLinks, { name: 'Finnhub', url: 'https://finnhub.io' }, { name: 'FRED', url: 'https://fred.stlouisfed.org' }].filter((x, i, all) => all.findIndex((y) => y.name === x.name) === i).slice(0, 6),
     facts: sheet.facts.map(({ history, ...x }) => x),
     reasons: found.reasons,
     allowed: [...allowedNumbers(sheet)],
