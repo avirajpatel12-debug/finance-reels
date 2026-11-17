@@ -20,7 +20,8 @@ async function ffmpegPath() {
 
 // Uses the Chrome that is already installed (on the Mac and on GitHub's computers), so nothing extra is downloaded.
 async function launchBrowser() {
-  const args = process.env.CI ? ['--no-sandbox'] : [];
+  // Keep Chrome drawing at full speed even when nothing is on screen (otherwise a sleeping display can stall it).
+  const args = ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', ...(process.env.CI ? ['--no-sandbox'] : [])];
   const tries = [
     { channel: process.env.CHROME_CHANNEL || 'chrome', args },
     ...[process.env.CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'].filter((p) => p && fs.existsSync(p)).map((executablePath) => ({ executablePath, args })),
@@ -64,7 +65,7 @@ export async function renderReel(reel, outFile) {
     await page.evaluate((r) => window.setup(r), reel);
     for (let f = 0; f < frames; f++) {
       await page.evaluate((time) => window.seek(time), f / FPS);
-      const jpg = await page.screenshot({ type: 'jpeg', quality: 92 });
+      const jpg = await page.screenshot({ type: 'jpeg', quality: 92, timeout: 120_000 });
       if (!ff.stdin.write(jpg)) await new Promise((r) => ff.stdin.once('drain', r));
     }
     // A still of each scene's midpoint, used as the poster image and for quick review.
