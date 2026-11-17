@@ -15,7 +15,7 @@ import * as ai from './gemini.js';
 import { todaysHeadlines } from './headlines.js';
 import { checkStory, allowedNumbers, numbersIn } from './verify.js';
 
-const PROMPT_VERSION = 1;
+const PROMPT_VERSION = 2;
 const BEAT_LABEL = { what: 'What happened', why: 'Why', matters: 'Why it matters', implications: 'What it means', ripple: 'Ripple effects', watch: 'What to watch', outro: '' };
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -34,6 +34,7 @@ Hard rules:
 - Every number you write must be copied exactly from the FACTS (value or meaning) or the STORIES. Write numbers as digits. Never round, convert, add up, subtract or estimate. If a number is not given, do not use one.
 - Do not state any event, cause or company action that is not in the FACTS, REASONS or STORIES.
 - Moves: write "down 1.25%" or "up 0.40%" (no plus or minus signs in the narration).
+- Levels (VIX, yields, oil, dollar) are official closes from the date in their meaning. If that date is not today, say when, for example "at Monday's close".
 - Each scene: 1 or 2 short sentences, at most 30 words. The whole video: 70 to 120 words.
 - sourceIds lists only REASON ids (r1, r2...) or STORY ids (story1...), never fact ids.
 - No abbreviations a beginner would not know: say "earnings per share", not "EPS". No em dashes.
