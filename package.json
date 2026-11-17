@@ -6,13 +6,15 @@
     "dry": "DRY_RUN=1 USE_FIXTURE=1 node pipeline/run.js",
     "sample": "USE_FIXTURE=1 node pipeline/run.js",
     "reels": "node pipeline/run.js",
-    "voices": "node pipeline/voice-samples.js"
+    "voices": "node pipeline/voice-samples.js",
+    "site": "wrangler pages dev dist --port 8788 --ip 127.0.0.1"
   },
   "dependencies": {
     "@fontsource/nunito": "^5.0.0",
     "ffmpeg-static": "^5.2.0",
     "kokoro-js": "^1.2.1",
-    "playwright-core": "^1.48.0"
+    "playwright-core": "^1.48.0",
+    "wrangler": "^4.163.0"
   },
   "description": "Turns daily market data into short narrated vertical videos."
 }

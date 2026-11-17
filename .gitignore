@@ -3,3 +3,6 @@ out/
 .cache/
 .env
 *.log
+dist/
+.dev.vars
+.wrangler/

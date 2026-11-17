@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F6EBDD">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Reels">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" href="/icon-192.png">
+<title>Finance Reels</title>
+<style>
+  :root { --paper: #F6EBDD; --card: #FFF9F0; --ink: #2B1B17; --maroon: #8E2F33; --up: #2E9460; --down: #D2402F; --muted: #6E5F58; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); overflow: hidden; overscroll-behavior: none;
+    font: 700 15px/1.3 ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  #stage { position: fixed; inset: 0; display: grid; place-items: center; }
+  video { width: 100%; height: 100%; object-fit: contain; background: var(--paper); display: block; }
+  /* top bar: today's date and the index ticker strip */
+  #top { position: fixed; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top) + 6px) 12px 6px; display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(var(--paper) 70%, transparent); z-index: 3; }
+  #date { font-weight: 800; white-space: nowrap; }
+  #ticker { flex: 1; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 18px), transparent); }
+  #ticker::-webkit-scrollbar { display: none; }
+  .chip { flex: none; padding: 3px 9px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); font-size: 13px; white-space: nowrap; }
+  .chip b { font-weight: 800; } .up { color: var(--up); } .down { color: var(--down); }
+  /* bottom: what this reel is, where the numbers come from, sound */
+  #bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px); display: flex; align-items: flex-end; gap: 10px; z-index: 3;
+    background: linear-gradient(transparent, var(--paper) 45%); }
+  #info { flex: 1; min-width: 0; }
+  #asof { color: var(--muted); font-size: 12.5px; }
+  #sources { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+  #sources a { color: var(--ink); text-decoration: none; padding: 3px 9px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); font-size: 12.5px; }
+  button { font: inherit; color: var(--ink); background: var(--card); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 3px 3px 0 var(--ink); }
+  #sound { flex: none; width: 46px; height: 46px; display: grid; place-items: center; padding: 0; }
+  #sound svg { width: 24px; height: 24px; }
+  /* centre: tap for sound, paused, messages */
+  #hint { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; padding: 12px 20px; font-size: 17px; font-weight: 800; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  #hint.show { opacity: 1; }
+  #note { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 30px; z-index: 5; background: var(--paper); font-size: 18px; }
+  #note.show { display: grid; }
+  #note small { display: block; margin-top: 8px; color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="stage"><video id="v" playsinline webkit-playsinline muted loop preload="auto"></video></div>
+<div id="top"><div id="date"></div><div id="ticker" aria-label="Index moves"></div></div>
+<div id="bottom">
+  <div id="info"><div id="asof"></div><div id="sources"></div></div>
+  <button id="sound" aria-label="Turn sound on"></button>
+</div>
+<button id="hint"></button>
+<div id="note"><div></div></div>
+<script>
+const $ = (id) => document.getElementById(id);
+const v = $('v');
+const ICON = {
+  off: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
+  on: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7M19.5 5.5a9 9 0 010 13"/></svg>',
+};
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let heardOnce = false;
+
+function note(text, small) { $('note').firstElementChild.innerHTML = esc(text) + (small ? `<small>${esc(small)}</small>` : ''); $('note').classList.add('show'); }
+function hint(text, ms) { const h = $('hint'); h.textContent = text; h.classList.add('show'); clearTimeout(hint.t); if (ms) hint.t = setTimeout(() => h.classList.remove('show'), ms); }
+function paintSound() { $('sound').innerHTML = v.muted ? ICON.off : ICON.on; $('sound').setAttribute('aria-label', v.muted ? 'Turn sound on' : 'Turn sound off'); }
+
+function show(reel, ticker) {
+  $('date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  $('ticker').innerHTML = (ticker || []).map((t) => `<span class="chip">${esc(t.label)} <b class="${t.move > 0 ? 'up' : t.move < 0 ? 'down' : ''}">${esc(t.value)}</b></span>`).join('');
+  $('asof').textContent = [reel.title, reel.asOf].filter(Boolean).join(' · ');
+  $('sources').innerHTML = (reel.sources || []).map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Source: ${esc(s.name)}</a>`).join('');
+  v.poster = '/' + reel.poster;
+  v.src = '/' + reel.video;
+  v.muted = true; // phones only allow a video to start by itself when it is silent
+  paintSound();
+  v.play().then(() => hint('Tap for sound', 0), () => hint('Tap to play', 0));
+}
+
+// First tap turns the sound on and starts from the top; after that a tap pauses or plays.
+$('stage').addEventListener('click', () => {
+  if (!heardOnce) { heardOnce = true; v.muted = false; v.currentTime = 0; v.play(); paintSound(); $('hint').classList.remove('show'); return; }
+  if (v.paused) { v.play(); $('hint').classList.remove('show'); } else { v.pause(); hint('Paused', 0); }
+});
+$('sound').addEventListener('click', (e) => { e.stopPropagation(); heardOnce = true; v.muted = !v.muted; paintSound(); $('hint').classList.remove('show'); if (v.paused) v.play(); });
+v.addEventListener('error', () => note('This reel could not be played.', 'Check your connection and reopen the app.'));
+document.addEventListener('visibilitychange', () => { if (document.hidden) v.pause(); });
+
+(async () => {
+  try {
+    const res = await fetch('/manifest.json', { cache: 'no-store' });
+    if (res.status === 401) return location.reload(); // signed out: go back to the password screen
+    if (!res.ok) throw new Error(res.status);
+    const m = await res.json();
+    if (!m.reels || !m.reels.length) return note('No reels yet.', 'The first batch appears after the next scheduled run.');
+    show(m.reels[0], m.ticker);
+  } catch (err) {
+    note('Could not load the reels.', 'Check your connection and reopen the app.');
+  }
+})();
+</script>
+</body>
+</html>
