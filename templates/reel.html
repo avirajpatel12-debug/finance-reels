@@ -50,6 +50,34 @@
   .outro { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 30px; }
   .outro .line { font-size: 84px; font-weight: 900; line-height: 1.08; }
   .outro .line:nth-child(2) { color: var(--maroon); font-size: 64px; }
+  /* which part of the story this scene is */
+  .pill { display: inline-block; font-size: 30px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: #fff; background: var(--maroon); border: 5px solid var(--ink); border-radius: 999px; padding: 6px 24px 8px; margin-bottom: 26px; box-shadow: 5px 5px 0 var(--ink); }
+  /* headline */
+  .hl-card { padding: 0; overflow: hidden; }
+  .hl-card .kick { background: var(--ink); color: var(--paper); font-size: 30px; letter-spacing: 4px; padding: 14px 48px; text-transform: uppercase; }
+  .hl-card .hl { font-size: 86px; font-weight: 900; line-height: 1.06; padding: 44px 48px 10px; }
+  .hl-card .srcs { font-size: 34px; color: var(--muted); padding: 10px 48px 44px; }
+  /* one big number */
+  .stat-card { padding: 44px 48px 40px; }
+  .stat-card .label { font-size: 54px; font-weight: 900; line-height: 1.1; }
+  .stat-card .big { font-size: 190px; font-weight: 900; line-height: 1; margin: 18px 0 10px; letter-spacing: -3px; color: var(--maroon); }
+  .stat-card .big.up { color: var(--up); } .stat-card .big.down { color: var(--down); }
+  .stat-card .context { font-size: 42px; line-height: 1.2; }
+  .stat-card svg { display: block; margin-top: 26px; width: 100%; height: 230px; }
+  .stat-card .date { font-size: 28px; color: var(--muted); margin-top: 14px; }
+  /* ripple: cause and effects */
+  .from { padding: 34px 40px 38px; font-size: 64px; font-weight: 900; line-height: 1.1; text-align: center; background: var(--maroon); color: #fff; }
+  .ripple .down-arrow { display: block; margin: 18px auto; }
+  .tos { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .to { padding: 26px 24px 30px; text-align: center; }
+  .to .n { font-size: 40px; font-weight: 900; line-height: 1.1; min-height: 88px; display: flex; align-items: center; justify-content: center; }
+  .to .v { font-size: 82px; font-weight: 900; margin-top: 8px; }
+  /* what to watch */
+  .items { margin-top: 30px; display: flex; flex-direction: column; gap: 28px; }
+  .item { padding: 30px 36px; display: flex; gap: 30px; align-items: center; }
+  .item svg { flex: none; }
+  .item .n { font-size: 54px; font-weight: 900; line-height: 1.1; }
+  .item .w { font-size: 38px; color: var(--muted); margin-top: 6px; }
   /* captions: bold white, dark outline, spoken words bright and upcoming words dim */
   #cap { position: absolute; left: 40px; right: 40px; top: 1450px; text-align: center; font-size: 78px; font-weight: 900; line-height: 1.1; }
   #cap span { color: #CFC4BA; -webkit-text-stroke: 11px var(--ink); paint-order: stroke fill; margin: 0 11px; letter-spacing: 1.5px; display: inline-block; }
@@ -74,17 +102,38 @@ const clamp = (x) => Math.max(0, Math.min(1, x));
 const ease = (x) => 1 - Math.pow(1 - clamp(x), 3);
 let R, chunks = [];
 
+// A small line chart that draws itself in.
+function spark(values, H = 300) {
+  if (!values || values.length < 2) return '';
+  const lo = Math.min(...values), hi = Math.max(...values), W = 840;
+  const pts = values.map((y, i) => [(i / (values.length - 1)) * W + 8, H - ((y - lo) / (hi - lo || 1)) * (H - 30) - 8 + 15]);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  return `<svg viewBox="0 0 856 ${H + 30}" preserveAspectRatio="none"><path class="sp" d="${d}" fill="none" stroke="#2B1B17" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/><circle class="dot" cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="15" fill="#8E2F33" stroke="#2B1B17" stroke-width="6" opacity="0"/></svg>`;
+}
+const CAL = '<svg width="96" height="96" viewBox="0 0 48 48"><rect x="5" y="9" width="38" height="34" rx="6" fill="#FFF9F0" stroke="#2B1B17" stroke-width="4"/><path d="M5 19h38" stroke="#2B1B17" stroke-width="4"/><rect x="5" y="9" width="38" height="10" rx="4" fill="#8E2F33" stroke="#2B1B17" stroke-width="4"/><path d="M15 5v8M33 5v8" stroke="#2B1B17" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="31" r="5" fill="#8E2F33"/></svg>';
+
 function sceneHtml(s) {
+  return (s.beatLabel ? `<div class="pill">${esc(s.beatLabel)}</div>` : '') + body(s);
+}
+
+function body(s) {
   const v = s.visual;
   if (s.type === 'hero') {
-    let svg = '';
-    if (v.spark && v.spark.length > 1) {
-      const lo = Math.min(...v.spark), hi = Math.max(...v.spark), W = 840, H = 300;
-      const pts = v.spark.map((y, i) => [(i / (v.spark.length - 1)) * W + 8, H - ((y - lo) / (hi - lo || 1)) * (H - 30) - 8 + 15]);
-      const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
-      svg = `<svg viewBox="0 0 856 330" preserveAspectRatio="none"><path class="sp" d="${d}" fill="none" stroke="#2B1B17" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/><circle class="dot" cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="15" fill="#8E2F33" stroke="#2B1B17" stroke-width="6" opacity="0"/></svg><div class="sl">${esc(v.sparkLabel)}</div>`;
-    }
+    const svg = v.spark && v.spark.length > 1 ? `${spark(v.spark)}<div class="sl">${esc(v.sparkLabel)}</div>` : '';
     return `<div class="card"><div class="label">${esc(v.label)}</div><div class="big ${cls(v.sign)}">${esc(v.value)}</div><div class="sub">${esc(v.sub)}</div>${svg}</div>`;
+  }
+  if (s.type === 'headline') {
+    return `<div class="card hl-card"><div class="kick">In the news</div><div class="hl">${esc(v.headline)}</div>${v.sources && v.sources.length ? `<div class="srcs">${esc(v.sources.join(' · '))}</div>` : ''}</div>`;
+  }
+  if (s.type === 'stat') {
+    return `<div class="card stat-card"><div class="label">${esc(v.label)}</div><div class="big ${v.sign ? cls(v.sign) : ''}">${esc(v.value)}</div>${v.context ? `<div class="context">${esc(v.context)}</div>` : ''}${spark(v.spark, 200)}<div class="date">${esc(v.date || '')}</div></div>`;
+  }
+  if (s.type === 'ripple') {
+    return `<div class="card from">${esc(v.from)}</div><svg class="down-arrow" width="120" height="120" viewBox="0 0 60 60"><path class="draw" d="M30 4v46M12 34l18 18 18-18" fill="none" stroke="#2B1B17" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg><div class="tos">` +
+      v.rows.map((r) => `<div class="card to"><div class="n">${esc(r.label)}</div><div class="v ${cls(r.move)}">${esc(r.value)}</div></div>`).join('') + '</div>';
+  }
+  if (s.type === 'watch') {
+    return `<div class="heading">Coming up</div><div class="items">` + v.items.map((it) => `<div class="card item">${CAL}<div><div class="n">${esc(it.label)}</div><div class="w">${esc(it.when)}</div></div></div>`).join('') + '</div>';
   }
   if (s.type === 'bars') {
     const max = Math.max(...v.rows.map((r) => Math.abs(r.move)), 0.01);
@@ -128,16 +177,27 @@ window.seek = (t) => {
     el.style.opacity = on ? Math.min(fadeIn, fadeOut) : 0;
     if (!on) return;
     el.style.transform = `translateY(${(1 - fadeIn) * 60}px) scale(${1 + (el.classList.contains('compact') ? 0 : 0.03) * clamp(lt / s.duration)})`; // slow push-in
-    el.querySelectorAll('.row, .tile').forEach((row, k) => {
+    el.querySelectorAll('.row, .tile, .item').forEach((row, k) => {
       const p = ease((lt - 0.3 - k * (el.classList.contains('compact') ? 0.07 : 0.22)) / 0.45);
       row.style.opacity = p; row.style.transform = `translateX(${(1 - p) * -70}px)`;
       const f = row.querySelector('.fill'); if (f) f.style.width = (ease((lt - 0.55 - k * 0.12) / 0.8) * f.dataset.w) + '%';
     });
+    el.querySelectorAll('.to').forEach((card, k) => {
+      const p = ease((lt - 0.9 - k * 0.2) / 0.45);
+      card.style.opacity = p; card.style.transform = `translateY(${(1 - p) * -50}px)`;
+    });
+    const draw = el.querySelector('.draw');
+    if (draw) draw.style.strokeDashoffset = 1 - ease((lt - 0.35) / 0.5);
+    const hl = el.querySelector('.hl');
+    if (hl) { const p = ease((lt - 0.1) / 0.45); hl.style.opacity = p; hl.style.transform = `translateY(${(1 - p) * 30}px)`; }
     const sp = el.querySelector('.sp');
     if (sp) { const p = ease((lt - 0.5) / 2.2); sp.style.strokeDashoffset = 1 - p; el.querySelector('.dot').style.opacity = p > 0.98 ? 1 : 0; }
     const big = el.querySelector('.big');
     if (big) { const p = ease((lt - 0.15) / 0.5); big.style.transform = `scale(${0.6 + 0.4 * p})`; big.style.transformOrigin = '0 60%'; big.style.opacity = p; }
   });
+  // The footer names the source of what is on screen right now.
+  const now = R.scenes.find((s) => t >= s.start && t < s.start + s.duration) || R.scenes.at(-1);
+  document.querySelector('#foot .s').textContent = now.sourceLine || R.footer.source;
   const c = chunks.find((c) => t >= c.start - 0.05 && t < c.end);
   document.getElementById('cap').innerHTML = c ? c.words.map((w) => `<span class="${t >= w.start ? 'on' : ''}">${esc(w.w)}</span>`).join('') : '';
   document.getElementById('bar').style.width = (clamp(t / R.duration) * 100) + '%';

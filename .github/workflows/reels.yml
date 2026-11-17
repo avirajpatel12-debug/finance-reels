@@ -1,6 +1,7 @@
 # Makes the reels on GitHub's computers and publishes them to the site (reachable only through its secret link). This project is public, so that
 # computer time is free. Started by an outside timer three times a day, or by hand from the Actions tab.
-#   real         live market data from the private cloud store, real narrator voice, published to the site
+#   real         live market data from the private cloud store, story written by Google's free Gemini, real narrator
+#                voice, published to the site
 #   sample-data  the small sample in fixtures/ (public market numbers), real narrator voice, never published
 #   dry          sample data, no voice, no AI, never published: the fastest free test
 # Nothing private is kept on GitHub: finished reels and their narration go only to the site.
@@ -42,6 +43,8 @@ jobs:
       PAGES_PROJECT: ${{ secrets.PAGES_PROJECT }}
       SITE_URL: ${{ secrets.SITE_URL }}
       SITE_KEY: ${{ secrets.SITE_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_AUTH: ${{ secrets.GEMINI_AUTH }}
       TZ: America/New_York
     steps:
       - uses: actions/checkout@v4

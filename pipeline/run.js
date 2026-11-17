@@ -1,46 +1,48 @@
-// Makes reels and publishes them. For now: the index scoreboard only.
+// Makes reels and publishes them. For now: the market story reel.
 //   DRY_RUN=1 node pipeline/run.js   no voice, no AI, no cost, nothing published: tests the whole chain
 //   FORCE=1 node pipeline/run.js     make the reel again even if the same one is already on the site
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadTables, ROOT } from './data.js';
-import { buildScoreboard } from './scoreboard.js';
-import { verifyScript, numbersIn } from './verify.js';
+import { prepare, buildMarketReel, finalCheck } from './market.js';
+import { callsMade } from './gemini.js';
 import { addVoice } from './voice.js';
 import { renderReel } from './render.js';
-import { hosting, liveManifest, publish, reelHash } from './publish.js';
+import { hosting, liveManifest, publish } from './publish.js';
 
 const dry = process.env.DRY_RUN === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const outDir = path.join(ROOT, 'out');
 
-const { source, tables } = await loadTables(['indices', 'macro', 'sectors']);
+const { source, tables } = await loadTables(['indices', 'macro', 'sectors', 'earnings', 'feed', 'market-caps']);
 log(`Data from: ${source}${dry ? ' (dry run: no voice, no AI calls, $0)' : ''}`);
 
-const reel = buildScoreboard(tables);
-if (!reel) {
-  log('WARNING: no fresh S&P 500 quote, so no scoreboard reel was made.');
+const prep = prepare(tables);
+if (!prep) {
+  log('WARNING: no fresh S&P 500 quote, so no market reel was made.');
   process.exit(0);
 }
 
-// Accuracy gate: every spoken number must be on the fact sheet.
-const allowed = new Set(reel.facts.flatMap((f) => numbersIn(f.display)));
-const problems = verifyScript(reel.scenes, allowed);
+// Never make the same reel twice: if a reel made from exactly this data is already on the site, stop before any work.
+const willPublish = hosting && !dry && source === 'cloud';
+const live = willPublish ? await liveManifest() : null;
+if (willPublish && !process.env.FORCE && live.reels.some((r) => r.id === prep.id && r.hash === prep.hash)) {
+  log('A reel made from this exact data is already on the site, so nothing was researched, written, made or uploaded.');
+  process.exit(0);
+}
+
+const reel = await buildMarketReel(prep, { dry });
+log(`Script: ${reel.how}. ${reel.scenes.length} scenes, ${callsMade()} AI call(s) this run.`);
+for (const s of reel.scenes) log(`  [${s.beat}] ${s.narration}`);
+
+// Final accuracy gate, whatever wrote the script: every number must be on the fact sheet.
+const problems = finalCheck(reel);
 if (problems.length) {
   log('STOPPED: the script contains numbers that are not in the data:');
   for (const p of problems) log('  ' + p);
   process.exit(1);
 }
-log(`Accuracy check passed: ${reel.facts.length} facts, ${reel.scenes.length} scenes.`);
-
-// Never make the same reel twice: if this exact reel is already on the site, stop here.
-const willPublish = hosting && !dry && source === 'cloud';
-const live = willPublish ? await liveManifest() : null;
-const hash = reelHash(reel);
-if (willPublish && !process.env.FORCE && live.reels.some((r) => r.id === reel.id && r.hash === hash)) {
-  log('This reel is already on the site and nothing has changed, so nothing was made or uploaded.');
-  process.exit(0);
-}
+log(`Accuracy check passed: every number is on the fact sheet (${reel.facts.length} facts).`);
 
 const outFile = path.join(outDir, `${reel.id}${dry ? '.dry' : ''}.mp4`); // a dry run never overwrites a real reel
 const voice = await addVoice(reel.scenes, { dry, wavFile: path.join(ROOT, '.cache', `${reel.id}.wav`) });
@@ -53,7 +55,7 @@ fs.writeFileSync(outFile.replace(/\.mp4$/, '.json'), JSON.stringify({ ...reel, a
 log(`Rendered ${path.relative(ROOT, outFile)}: ${seconds.toFixed(1)}s, ${frames} frames, ${(fs.statSync(outFile).size / 1e6).toFixed(1)} MB, took ${((Date.now() - started) / 1000).toFixed(0)}s.`);
 
 if (willPublish) {
-  const result = await publish([{ reel, hash, video: outFile, poster: outFile.replace(/\.mp4$/, '.jpg') }], live);
+  const result = await publish([{ reel, hash: prep.hash, video: outFile, poster: outFile.replace(/\.mp4$/, '.jpg') }], live);
   log(`Published: ${result.added} new reel, ${result.kept} earlier reels kept, ${result.total} on the site now.${result.dropped ? ` WARNING: ${result.dropped} earlier reels could not be fetched back and were dropped.` : ''}`);
 } else if (!dry) {
   log(source === 'cloud' ? 'Not published: hosting is not set up on this machine.' : 'Not published: sample data is never put on the site.');

@@ -81,6 +81,7 @@ export async function assemble(items, live, key = KEY) {
   let dropped = 0;
   for (const r of live?.reels || []) {
     if (fresh.has(r.id)) continue; // a newer version is being published now
+    if (r.kind === 'scoreboard') continue; // the retired numbers-only format
     if (now - new Date(r.createdAt).getTime() > KEEP_DAYS * 864e5) continue; // past the keep window
     try {
       for (const rel of [r.video, r.poster]) {
@@ -105,7 +106,7 @@ export async function assemble(items, live, key = KEY) {
   });
 
   const reels = [...added, ...kept].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  const board = reels.find((r) => r.kind === 'scoreboard');
+  const board = reels.find((r) => r.ticker?.length); // the newest reel with index moves feeds the ticker strip
   const manifest = { updatedAt: new Date().toISOString(), ticker: board?.ticker || [], tickerAsOf: board?.asOf || '', reels };
   fs.writeFileSync(path.join(home, 'manifest.json'), JSON.stringify(manifest));
   return { total: reels.length, added: added.length, kept: kept.length, dropped };
