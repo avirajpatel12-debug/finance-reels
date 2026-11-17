@@ -26,7 +26,7 @@ export function buildScoreboard({ indices, macro, sectors }) {
   const scenes = [
     {
       type: 'hero',
-      narration: `Here is your market scoreboard for ${when.weekday}, ${when.monthDay}. Stocks are ${tone} ${span}. The S&P 500 is ${move(spy.movePct)}.`,
+      narration: `Your market scoreboard for ${when.weekday}, ${when.monthDay}. Stocks are ${tone} ${span}. The S&P 500 is ${move(spy.movePct)}.`,
       visual: {
         label: 'S&P 500',
         value: signed(spy.movePct),
@@ -43,7 +43,7 @@ export function buildScoreboard({ indices, macro, sectors }) {
   for (const r of stockRows) fact(`${r.label} move`, pct(r.movePct), r.tracks, r.asOf);
   const others = stockRows.filter((r) => r.symbol !== 'SPY');
   if (others.length) {
-    const say = { QQQ: 'The Nasdaq 100 is', DIA: 'the Dow is', IWM: 'and small companies in the Russell 2000 are' };
+    const say = { QQQ: 'The Nasdaq 100 is', DIA: 'the Dow is', IWM: 'and the small-company Russell 2000 is' };
     scenes.push({
       type: 'bars',
       narration: others.map((r) => `${say[r.symbol]} ${move(r.movePct)}`).join(', ').replace(/^t/, 'T').replace(/^a/, 'A') + '.',
@@ -60,21 +60,20 @@ export function buildScoreboard({ indices, macro, sectors }) {
   if (vix) {
     tiles.push({ label: 'VIX', hint: 'fear gauge', value: fact('VIX close', trim(vix.value), 'FRED VIXCLS', vix.date), prev: vix.previous ? `prior ${trim(vix.previous.value)}` : '', date: plainDay(vix.date) });
     if (vix.previous) fact('VIX prior close', trim(vix.previous.value), 'FRED VIXCLS', vix.previous.date);
-    parts.push(`the VIX, Wall Street's fear gauge, was ${trim(vix.value)}`);
+    parts.push(`the VIX fear gauge last closed at ${trim(vix.value)}`);
   }
   if (ten) {
     tiles.push({ label: '10-year yield', hint: 'Treasury', value: `${fact('10-year yield', trim(ten.value), 'FRED DGS10', ten.date)}%`, prev: ten.previous ? `prior ${trim(ten.previous.value)}%` : '', date: plainDay(ten.date) });
     if (ten.previous) fact('10-year yield prior', trim(ten.previous.value), 'FRED DGS10', ten.previous.date);
-    parts.push(`the 10-year Treasury yield was ${trim(ten.value)}%`);
+    parts.push(`the 10-year Treasury yield at ${trim(ten.value)}%`);
   }
   if (curve) {
     tiles.push({ label: 'Yield curve', hint: '10-year minus 2-year', value: `${fact('Yield curve', trim(curve.value), 'FRED T10Y2Y', curve.date)} pts`, prev: curve.previous ? `prior ${trim(curve.previous.value)}` : '', date: plainDay(curve.date) });
     if (curve.previous) fact('Yield curve prior', trim(curve.previous.value), 'FRED T10Y2Y', curve.previous.date);
-    parts.push(`the gap between 10-year and 2-year yields was ${trim(curve.value)} points`);
   }
   if (parts.length) {
-    const joined = parts.length > 1 ? `${parts.slice(0, -1).join(', ')}, and ${parts.at(-1)}` : parts[0];
-    scenes.push({ type: 'stats', narration: `At the latest official close, ${joined}.`, visual: { heading: 'Fear and rates', note: 'Latest official closes (FRED)', tiles } });
+    const joined = parts.join(', and ');
+    scenes.push({ type: 'stats', narration: `${joined[0].toUpperCase()}${joined.slice(1)}.`, visual: { heading: 'Fear and rates', note: 'Latest official closes (FRED)', tiles } });
   }
 
   // ---- Scene 4: oil, gold, dollar, bitcoin ----
@@ -104,7 +103,7 @@ export function buildScoreboard({ indices, macro, sectors }) {
     fact('Sectors total', String(sec.length), 'sector funds with a quote', best.asOf);
     scenes.push({
       type: 'bars',
-      narration: `${up} of ${sec.length} sectors are higher. The best is ${best.name}, ${move(best.movePct)}. The worst is ${worst.name}, ${move(worst.movePct)}.`,
+      narration: `${up} of ${sec.length} sectors are higher. Best: ${best.name}, ${move(best.movePct)}. Worst: ${worst.name}, ${move(worst.movePct)}.`,
       visual: { heading: 'Sectors, best to worst', note: `SPDR sector funds, ${span}`, compact: true, rows: sec.map((s) => ({ label: s.name, sub: s.symbol, value: signed(s.movePct), move: s.movePct })) },
     });
   }
@@ -112,7 +111,7 @@ export function buildScoreboard({ indices, macro, sectors }) {
   // ---- Scene 6: sign-off ----
   scenes.push({
     type: 'outro',
-    narration: 'These moves come from the funds that track each market. Swipe up for the stories behind them.',
+    narration: 'Swipe up for the stories behind the moves.',
     visual: { lines: ['That is your scoreboard', 'Swipe up for the stories'] },
   });
 

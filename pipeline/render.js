@@ -29,10 +29,12 @@ export async function renderReel(reel, outFile) {
   const frames = Math.round(reel.duration * FPS);
 
   // Audio: the narration clips in order, or silence in a dry run.
-  const audioArgs = ['-f', 'lavfi', '-t', String(reel.duration), '-i', 'anullsrc=r=44100:cl=stereo'];
+  const audioArgs = reel.audioFile
+    ? ['-i', reel.audioFile, '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11,aresample=44100', '-ac', '2']
+    : ['-f', 'lavfi', '-t', String(reel.duration), '-i', 'anullsrc=r=44100:cl=stereo'];
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   const ff = spawn(await ffmpegPath(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', ...audioArgs,
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-c:a', 'aac', '-b:a', '96k', '-shortest', '-movflags', '+faststart', outFile], { stdio: ['pipe', 'inherit', 'pipe'] });
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-c:a', 'aac', '-b:a', '128k', '-t', String(reel.duration), '-movflags', '+faststart', outFile], { stdio: ['pipe', 'inherit', 'pipe'] });
   let ffErr = '';
   ff.stderr.on('data', (d) => (ffErr += d));
   const done = new Promise((resolve, reject) => ff.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg failed: ${ffErr.slice(-400)}`)))));

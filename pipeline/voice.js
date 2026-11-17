@@ -1,10 +1,22 @@
 // Narration audio and word timings (the timings drive the captions).
-// DRY_RUN: no voice at all, just estimated timings and a silent track, so the whole chain can be tested for free.
-const CHARS_PER_SEC = 17; // calm narrator pace, about 160 words a minute
+// Real mode: Kokoro, a free open-source voice that runs right here (no API, no account, no cost).
+// DRY_RUN: no voice at all, just estimated timings and silence, so the whole chain can be tested instantly.
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from './data.js';
+
+const RATE = 24000; // Kokoro's sample rate
+const CHARS_PER_SEC = 17;
+const SENTENCE_GAP = 0.12; // seconds of quiet between sentences
+const SCENE_TAIL = 0.3; // quiet at the end of each scene
+export const VOICE = process.env.VOICE || 'am_michael';
+const SPEED = Number(process.env.VOICE_SPEED || 1.2); // a touch brisker than the default, like the reference reel
+const cacheDir = path.join(ROOT, '.cache', 'voice');
 
 export function estimateTimings(narration) {
   const words = [];
-  let t = 0.25; // small lead-in
+  let t = 0.25;
   for (const w of narration.split(/\s+/).filter(Boolean)) {
     const dur = Math.max(0.16, (w.replace(/[^A-Za-z0-9%]/g, '').length + 1) / CHARS_PER_SEC);
     words.push({ w, start: t, end: t + dur });
@@ -13,8 +25,114 @@ export function estimateTimings(narration) {
   return { words, duration: Math.max(3.5, t + 0.4) };
 }
 
-export async function addVoice(scenes, { dry }) {
-  if (!dry) throw new Error('Real voice is not built yet (next step of milestone 2). Run with DRY_RUN=1.');
-  for (const s of scenes) Object.assign(s, estimateTimings(s.narration), { audio: null });
-  return scenes;
+// What the voice should say for each written word. The caption keeps the written form.
+const spoken = (w) =>
+  w
+    .replace(/S&P/g, 'S and P')
+    .replace(/(\d)%/g, '$1 percent')
+    .replace(/\b10-year/g, 'ten year')
+    .replace(/\b2-year/g, 'two year')
+    .replace(/\bVIX\b/g, 'Vix')
+    .replace(/\bUTC\b/g, 'U T C');
+
+let ttsPromise;
+async function tts() {
+  ttsPromise ??= import('kokoro-js').then(({ KokoroTTS }) => KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'q8', device: 'cpu' }));
+  return ttsPromise;
+}
+
+// One sentence of speech as raw samples. Cached on disk so an unchanged sentence is never generated twice.
+async function speak(text) {
+  const file = path.join(cacheDir, `${crypto.createHash('sha1').update(`${VOICE}|${SPEED}|${text}`).digest('hex')}.f32`);
+  if (fs.existsSync(file)) {
+    const b = fs.readFileSync(file);
+    return { samples: new Float32Array(b.buffer, b.byteOffset, b.byteLength / 4), cached: true };
+  }
+  const audio = await (await tts()).generate(text, { voice: VOICE, speed: SPEED });
+  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.writeFileSync(file, Buffer.from(audio.audio.buffer, audio.audio.byteOffset, audio.audio.byteLength));
+  return { samples: audio.audio, cached: false };
+}
+
+// Where the speech actually starts and stops inside a clip (skips the quiet lead-in and tail).
+function voicedSpan(samples) {
+  const loud = (i) => Math.abs(samples[i]) > 0.012;
+  let a = 0;
+  let b = samples.length - 1;
+  while (a < b && !loud(a)) a++;
+  while (b > a && !loud(b)) b--;
+  return [a / RATE, b / RATE];
+}
+
+async function voiceScene(scene) {
+  const sentences = scene.narration.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const pieces = [];
+  const words = [];
+  let t = 0.15;
+  let made = 0;
+  for (const sentence of sentences) {
+    const ws = sentence.split(/\s+/);
+    const { samples, cached } = await speak(ws.map(spoken).join(' '));
+    if (!cached) made++;
+    const [from, to] = voicedSpan(samples);
+    // Share the spoken time among the words by how long each takes to say; commas get a short pause.
+    const weight = ws.map((w) => spoken(w).replace(/[^A-Za-z0-9]/g, '').length + 1.5 + (/[,;:]$/.test(w) ? 2.5 : 0));
+    const total = weight.reduce((x, y) => x + y, 0);
+    let at = t + from;
+    ws.forEach((w, i) => {
+      const dur = ((to - from) * weight[i]) / total;
+      words.push({ w, start: at, end: at + dur });
+      at += dur;
+    });
+    pieces.push({ at: t, samples });
+    t += Math.min(samples.length / RATE, to + 0.12) + SENTENCE_GAP; // drop the long quiet tail Kokoro leaves
+  }
+  const duration = Math.max(3.5, t - SENTENCE_GAP + SCENE_TAIL);
+  const audio = new Float32Array(Math.ceil(duration * RATE));
+  for (const p of pieces) audio.set(p.samples.subarray(0, audio.length - Math.round(p.at * RATE)), Math.round(p.at * RATE));
+  return { words, duration, audio, made };
+}
+
+function writeWav(file, samples) {
+  const buf = Buffer.alloc(44 + samples.length * 2);
+  buf.write('RIFF', 0);
+  buf.writeUInt32LE(36 + samples.length * 2, 4);
+  buf.write('WAVEfmt ', 8);
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(RATE, 24);
+  buf.writeUInt32LE(RATE * 2, 28);
+  buf.writeUInt16LE(2, 32);
+  buf.writeUInt16LE(16, 34);
+  buf.write('data', 36);
+  buf.writeUInt32LE(samples.length * 2, 40);
+  for (let i = 0; i < samples.length; i++) buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, samples[i])) * 32767), 44 + i * 2);
+  fs.writeFileSync(file, buf);
+}
+
+// Adds words + duration to every scene. Returns the narration file for the whole reel (null in a dry run).
+export async function addVoice(scenes, { dry, wavFile }) {
+  if (dry) {
+    for (const s of scenes) Object.assign(s, estimateTimings(s.narration));
+    return { audioFile: null, made: 0, voice: 'none (dry run)' };
+  }
+  const clips = [];
+  let made = 0;
+  for (const s of scenes) {
+    const v = await voiceScene(s);
+    s.words = v.words;
+    s.duration = v.audio.length / RATE; // exact, so picture and sound stay in step
+    clips.push(v.audio);
+    made += v.made;
+  }
+  const all = new Float32Array(clips.reduce((n, c) => n + c.length, 0));
+  let off = 0;
+  for (const c of clips) {
+    all.set(c, off);
+    off += c.length;
+  }
+  fs.mkdirSync(path.dirname(wavFile), { recursive: true });
+  writeWav(wavFile, all);
+  return { audioFile: wavFile, made, voice: VOICE };
 }
