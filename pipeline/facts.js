@@ -61,6 +61,11 @@ export function marketFacts({ indices, macro, sectors, earnings, feed, 'market-c
     add({ id: `move.${SHORT[r.symbol] || r.symbol}`, kind: 'move', group: 'market', label: r.label, display: signed(r.movePct), move: r.movePct, meaning: `${r.label} ${span}, measured by ${r.tracks}`, asOf: r.asOf, source: r.tracks, sourceName: 'Finnhub' });
   }
 
+  // The S&P 500's recent path, drawn under its big number (official closes, labelled as such).
+  const spx = (macro?.series || []).find((s) => s.key === 'SP500' && s.history?.length > 20);
+  const spyFact = facts.find((x) => x.id === 'move.SPY');
+  if (spx && spyFact) Object.assign(spyFact, { history: spx.history.slice(-60).map((h) => h.value), historyLabel: `S&P 500, last 60 closes to ${plainDay(spx.date)}` });
+
   // 2. Sectors, same trading day only, best to worst.
   const names = new Map((sectors?.rows || []).map((r) => [r.symbol, r.name]));
   const sec = SECTOR_SYMBOLS.map((s) => ({ s, name: names.get(s) || s, ...(sectors?.today?.[s] || {}) }))
@@ -79,7 +84,7 @@ export function marketFacts({ indices, macro, sectors, earnings, feed, 'market-c
     const s = series.get(key);
     if (!s) continue;
     const date = plainDay(s.date);
-    add({ id: `level.${key}`, kind: 'level', group: 'level', label, display: fmt(s.value), meaning: `${label} at the close on ${date}`, asOf: s.date, source: `FRED ${s.seriesId}`, sourceName: 'FRED', history: (s.history || []).slice(-60).map((h) => h.value) });
+    add({ id: `level.${key}`, kind: 'level', group: 'level', label, display: fmt(s.value), meaning: `${label} at the close on ${date}`, asOf: s.date, source: `FRED ${s.seriesId}`, sourceName: 'FRED', history: (s.history || []).slice(-60).map((h) => h.value), historyLabel: 'last 60 closes' });
     if (s.previous) add({ id: `prev.${key}`, kind: 'level', group: 'level', label: `${label}, close before`, display: fmt(s.previous.value), meaning: `${label} at the close on ${plainDay(s.previous.date)}`, asOf: s.previous.date, source: `FRED ${s.seriesId}`, sourceName: 'FRED' });
     if (s.decade?.percentile != null) {
       const since = String(s.decade.since).slice(0, 4);

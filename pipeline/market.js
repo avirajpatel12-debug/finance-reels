@@ -253,7 +253,7 @@ function toScenes(script, sheet, found) {
     if (v.kind === 'headline') return { ...base, type: 'headline', visual: { headline: v.headline, sources: names.slice(0, 3) } };
     if (v.kind === 'stat') {
       const x = f.get(v.factId);
-      return { ...base, type: 'stat', visual: { label: x.label, value: x.display, sign: x.kind === 'move' ? Math.sign(x.move) : 0, context: v.context || '', date: asOfText(x), spark: x.history || [] } };
+      return { ...base, type: 'stat', visual: { label: x.label, value: x.display, sign: x.kind === 'move' ? Math.sign(x.move) : 0, context: v.context || '', date: asOfText(x), spark: x.history || [], sparkLabel: x.historyLabel || '' } };
     }
     if (v.kind === 'bars') {
       const xs = v.factIds.map((id) => f.get(id));
@@ -303,6 +303,7 @@ export async function buildMarketReel(prep, { dry = false } = {}) {
   return {
     id: prep.id,
     kind: 'market',
+    header: 'Market story',
     title: script.title,
     dateLabel: `${when.weekday}, ${when.monthDay}`,
     footer: { source: 'Sources: Finnhub, FRED, news reports', asOf: `As of ${when.time} ET, ${when.shortDay}` },
