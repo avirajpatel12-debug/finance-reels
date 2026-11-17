@@ -1,9 +1,9 @@
-# Makes the reels on GitHub's computers and publishes them to the private site. This project is public, so that
+# Makes the reels on GitHub's computers and publishes them to the site (reachable only through its secret link). This project is public, so that
 # computer time is free. Started by an outside timer three times a day, or by hand from the Actions tab.
-#   real         live market data from the private cloud store, real narrator voice, published to the private site
+#   real         live market data from the private cloud store, real narrator voice, published to the site
 #   sample-data  the small sample in fixtures/ (public market numbers), real narrator voice, never published
 #   dry          sample data, no voice, no AI, never published: the fastest free test
-# Nothing private is kept on GitHub: finished reels and their narration go only to the private site.
+# Nothing private is kept on GitHub: finished reels and their narration go only to the site.
 name: Make reels
 
 on:
@@ -14,6 +14,10 @@ on:
         type: choice
         options: [real, sample-data, dry]
         default: real
+      force:
+        description: 'Make the reels again even if the same ones are already on the site'
+        type: boolean
+        default: false
       keep_video:
         description: 'Attach the finished video to this run for 1 day (sample data and dry runs only)'
         type: boolean
@@ -37,7 +41,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PAGES_PROJECT: ${{ secrets.PAGES_PROJECT }}
       SITE_URL: ${{ secrets.SITE_URL }}
-      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      SITE_KEY: ${{ secrets.SITE_KEY }}
       TZ: America/New_York
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +60,7 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.mode == 'dry' && '1' || '' }}
           USE_FIXTURE: ${{ inputs.mode != 'real' && '1' || '' }}
+          FORCE: ${{ inputs.force && '1' || '' }}
         run: node pipeline/run.js
       # Real reels are never attached here: anything attached to a run of a public project can be downloaded by others.
       - name: Attach the test video

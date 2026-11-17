@@ -21,16 +21,16 @@ More reel types (earnings, top stories, sector heatmap) and the phone app are on
 4. `pipeline/voice.js` narrates with Kokoro, a free open-source voice that runs inside the job.
 5. `pipeline/align.js` listens back to the narration (Whisper, also free and local) to time each caption word.
 6. `pipeline/render.js` draws every frame from `templates/reel.html` in headless Chrome and ffmpeg makes the MP4.
-7. `pipeline/publish.js` puts the reel on a private site (Cloudflare Pages) next to the earlier ones and updates the
+7. `pipeline/publish.js` puts the reel on the site (Cloudflare Pages) next to the earlier ones and updates the
    list the phone app reads. A reel that is already on the site and has not changed is not made again.
 
-## The private site
+## The site
 
 - `app/` is the page you open on the phone. It can be added to the iPhone Home Screen from Safari.
-- `functions/_middleware.js` is the password gate. Nothing on the site is served without the app password
-  (typed once per device). Only a salted hash of the password is stored.
-- `setup/hosting.mjs` is the one-time setup: it creates the site, asks for the password in a pop-up box on the Mac,
-  and stores the settings.
+- There is no password. Everything lives inside a folder with a long random name, so only the exact link opens it.
+  The front page of the site just says "Nothing here", and pages tell search engines not to list them.
+- The link is kept in the private keys file (`SITE_KEY`) and in this project's GitHub secrets, never in the code.
+- `setup/hosting.mjs` is the one-time setup, and `setup/link.mjs` makes a QR code of the link for the phone.
 
 ## Cost
 

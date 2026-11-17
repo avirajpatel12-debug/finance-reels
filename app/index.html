@@ -9,9 +9,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Reels">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/icon-180.png">
-<link rel="icon" href="/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>Finance Reels</title>
 <style>
   :root { --paper: #F6EBDD; --card: #FFF9F0; --ink: #2B1B17; --maroon: #8E2F33; --up: #2E9460; --down: #D2402F; --muted: #6E5F58; }
@@ -74,8 +74,8 @@ function show(reel, ticker) {
   $('ticker').innerHTML = (ticker || []).map((t) => `<span class="chip">${esc(t.label)} <b class="${t.move > 0 ? 'up' : t.move < 0 ? 'down' : ''}">${esc(t.value)}</b></span>`).join('');
   $('asof').textContent = [reel.title, reel.asOf].filter(Boolean).join(' · ');
   $('sources').innerHTML = (reel.sources || []).map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Source: ${esc(s.name)}</a>`).join('');
-  v.poster = '/' + reel.poster;
-  v.src = '/' + reel.video;
+  v.poster = reel.poster; // file names are relative to this page, which lives inside the secret folder
+  v.src = reel.video;
   v.muted = true; // phones only allow a video to start by itself when it is silent
   paintSound();
   v.play().then(() => hint('Tap for sound', 0), () => hint('Tap to play', 0));
@@ -92,8 +92,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) v.pau
 
 (async () => {
   try {
-    const res = await fetch('/manifest.json', { cache: 'no-store' });
-    if (res.status === 401) return location.reload(); // signed out: go back to the password screen
+    const res = await fetch('manifest.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(res.status);
     const m = await res.json();
     if (!m.reels || !m.reels.length) return note('No reels yet.', 'The first batch appears after the next scheduled run.');
